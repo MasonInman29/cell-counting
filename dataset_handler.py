@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 
 import pandas as pd
 from PIL import Image
+from pathlib import Path  # <-- CHANGED: use Path for robust paths
 
 
 # A Pytorch dataset class
@@ -34,7 +35,8 @@ class CellDataset(Dataset):
                 image_paths (list): A list that contains paths to the images.
                 transform (torchvision.transforms): A transform object that will be applied to the images.
         '''
-        self.image_paths = image_paths
+        # Ensure we store as Paths for easy manipulation
+        self.image_paths = [Path(p) for p in image_paths]  # <-- CHANGED
         self.transform = transform
 
     def __len__(self):
@@ -43,9 +45,19 @@ class CellDataset(Dataset):
     def __getitem__(self, idx):
         # Get the image path and the corresponding ground truth path
         img_path = self.image_paths[idx]
-        gt_path = img_path.replace('images', 'ground_truth').replace('.tiff', '.csv')
+
+        # Build GT path robustly:
+        # - replace parent dir 'img' or 'images' with 'ground_truth'
+        # - swap extension to .csv
+        parent = img_path.parent.name
+        if parent not in ("img", "images"):  # <-- CHANGED: tolerate either
+            # if the caller passed full paths already inside img/, do nothing
+            pass
+        gt_dir = img_path.parent.parent / "ground_truth"  # <-- CHANGED
+        gt_path = gt_dir / (img_path.stem + ".csv")       # <-- CHANGED
 
         # Load the image and the ground truth
+        # (.tiff or .tif both OK)
         img = Image.open(img_path).convert('RGB')
         gt = pd.read_csv(gt_path)
         label = torch.tensor(gt.shape[0], dtype=torch.float32).unsqueeze(0)
@@ -55,4 +67,3 @@ class CellDataset(Dataset):
             img = self.transform(img)
 
         return img, label
-        
