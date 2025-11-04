@@ -27,7 +27,7 @@ class CellDataset(Dataset):
             label (torch.Tensor): A tensor that represents the label.
 
     '''
-    def __init__(self, image_paths, transform=None):
+    def __init__(self, image_paths, transform=None, class_map=None):
         '''
             Initializes the dataset with a list of image paths and an optional transform object.
 
@@ -36,8 +36,12 @@ class CellDataset(Dataset):
                 transform (torchvision.transforms): A transform object that will be applied to the images.
         '''
         # Ensure we store as Paths for easy manipulation
-        self.image_paths = [Path(p) for p in image_paths]  # <-- CHANGED
+        self.image_paths = [Path(p) for p in image_paths]
         self.transform = transform
+
+        # class_map: optional dict mapping label string/int -> index in returned count vector
+        # If None, dataset will behave as single-class counting (same as original behavior)
+        self.class_map = class_map
 
     def __len__(self):
         return len(self.image_paths)
@@ -56,11 +60,33 @@ class CellDataset(Dataset):
         gt_dir = img_path.parent.parent / "ground_truth"  # <-- CHANGED
         gt_path = gt_dir / (img_path.stem + ".csv")       # <-- CHANGED
 
-        # Load the image and the ground truth
-        # (.tiff or .tif both OK)
+        # Load the image and the ground truth (.tiff or .tif both OK)
         img = Image.open(img_path).convert('RGB')
         gt = pd.read_csv(gt_path)
-        label = torch.tensor(gt.shape[0], dtype=torch.float32).unsqueeze(0)
+
+        # If a class_map was provided and the CSV contains a type/label column,
+        # produce a per-class count vector. Otherwise fall back to a single scalar count.
+        if self.class_map is not None and any(c in gt.columns for c in ("type", "label", "class")):
+            # prefer 'type', then 'label', then 'class'
+            col = None
+            for candidate in ("type", "label", "class"):
+                if candidate in gt.columns:
+                    col = candidate
+                    break
+            counts = torch.zeros(len(self.class_map), dtype=torch.float32)
+            # If the file is empty (no points) this will remain zeros
+            for v in gt[col].dropna().tolist():
+                # allow numeric or string labels
+                key = v
+                if key in self.class_map:
+                    counts[self.class_map[key]] += 1.0
+                else:
+                    # unknown label -> ignore (could warn)
+                    continue
+            label = counts
+        else:
+            # Single-class count (original behaviour)
+            label = torch.tensor(gt.shape[0], dtype=torch.float32).unsqueeze(0)
 
         # Apply the transform if available
         if self.transform:
