@@ -1,0 +1,22 @@
+name: cellCounting
+channels:
+  - pytorch
+  - nvidia   # remove this line for CPU-only
+  - conda-forge
+  - defaults
+dependencies: #pulled from github readme
+  - python=3.10
+  - pytorch=1.13.*
+  - torchvision=0.14.*
+  - torchaudio=0.13.*
+  - pytorch-cuda=11.7    # comment out and add "cpuonly" below for CPU-only
+  # - cpuonly            # <-- uncomment for CPU-only build
+  - numpy>=1.19
+  - pandas>=1.2
+  - pillow>=8.1
+
+
+# To create this python environment use this command:
+# conda env create -f environment.yml
+# then let it download
+# then conda activate cellCounting
