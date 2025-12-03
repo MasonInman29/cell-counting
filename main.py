@@ -1,8 +1,9 @@
 '''
 File: main.py
 Author: Abdurahman Mohammed
-Date: 2024-09-05
-Description: A Python script that trains a cell counting model using the IDCIA dataset.
+Edited by: Vincent Lindvall
+Date: 2025-12-02
+Description: A Python script that trains a cell counting model
 '''
 
 import torch
@@ -20,7 +21,7 @@ import pandas as pd                                                             
 from typing import List
 import os                                                            # <-- CHANGED
 
-def _image_paths_from_metadata(root: str | Path, include_sets: List[str]) -> list: # <-- CHANGED
+def _image_paths_from_metadata(root: str, include_sets: List[str]) -> list: # <-- CHANGED
     root = Path(root)
     meta = root / "metadata.csv"
     img_dir = root / "img"
@@ -113,19 +114,31 @@ def get_data_loaders(batch_size=8):
 
     dataset_root = "dataset"                                                     # <-- CHANGED
 
-    # If metadata.csv has explicit splits, use them. Otherwise do an 80/20 split from 'trainval'.
-    train_paths = _image_paths_from_metadata(dataset_root, include_sets=["trainval"])  # <-- CHANGED
-    val_paths   = _image_paths_from_metadata(dataset_root, include_sets=["test"])        # <-- CHANGED
+    trainval_paths = _image_paths_from_metadata(dataset_root, include_sets=["trainval"])  # <-- CHANGED
+    test_paths   = _image_paths_from_metadata(dataset_root, include_sets=["test"])        # <-- CHANGED
 
-    if not val_paths:
-        # No explicit val/test; make a small split from trainval         # <-- CHANGED
-        all_paths = sorted(set(train_paths))
-        n = len(all_paths)
-        split = max(1, int(0.2 * n))
-        # deterministic split                                                  # <-- CHANGED
-        all_paths = sorted(all_paths)
-        val_paths = all_paths[:split]
-        train_paths = all_paths[split:]
+    # -- Add Augmented Images --
+    # Specify what augmented image folders to include by commenting / un-commenting
+    augmented_image_folders_to_use = [ 
+        #v_flip",
+        #"h_flip",
+        #"0_point_5_contrast",
+        #"1_point_5_contrast",
+        #"blurred",
+        #"sharpened",
+        #"h_and_v_flip",
+        #"0_point_5_contrast_and_h_and_v_flip",
+        #"1_point_5_contrast_and_h_and_v_flip",
+    ]
+    
+    for augmented_image_folder in augmented_image_folders_to_use:
+        trainval_paths.extend(glob(f"augmented_dataset/{augmented_image_folder}/img/*.tiff"))
+
+    # Split the trainval images into two lists
+    n = len(trainval_paths)
+    split = max(1, int(0.2 * n))
+    val_paths = trainval_paths[:split]
+    train_paths = trainval_paths[split:]
 
     # Define transforms (unchanged)
     train_transform = transforms.Compose([
@@ -140,19 +153,24 @@ def get_data_loaders(batch_size=8):
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
 
-    # Detect classes (if any) and pass mapping to dataset
-    class_map = detect_class_map(dataset_root)
+    test_transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ])
 
     # Create datasets
-    train_dataset = CellDataset(train_paths, transform=train_transform, class_map=class_map)
-    val_dataset   = CellDataset(val_paths,   transform=val_transform,   class_map=class_map)
+    train_dataset = CellDataset(train_paths, transform=train_transform)          # <-- CHANGED (paths var)
+    val_dataset   = CellDataset(val_paths,   transform=val_transform)            # <-- CHANGED
+    test_dataset  = CellDataset(test_paths,   transform=test_transform)
 
     # Create dataloaders
     use_cuda = torch.cuda.is_available()
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,  num_workers=4, pin_memory=use_cuda)
-    val_loader   = DataLoader(val_dataset,   batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=use_cuda)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,  num_workers=2, pin_memory=use_cuda)
+    val_loader   = DataLoader(val_dataset,   batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=use_cuda)
+    test_loader   = DataLoader(test_dataset,   batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=use_cuda)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, test_loader
 
 def train_model(model, train_loader, val_loader, num_epochs=100, learning_rate=1e-3):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -272,21 +290,12 @@ def evaluate_model(model, data_loader, criterion, device):
     total = 0.0
     with torch.no_grad():
         for inputs, labels in data_loader:
-            inputs = inputs.to(device, non_blocking=True)
-            labels = labels.to(device, non_blocking=True).float()
-
-            out = model(inputs)
-            preds = out[0] if isinstance(out, tuple) else out  # (B,C) or (B,)
-
-            if preds.ndim == 1 and labels.ndim == 2:
-                preds = preds.unsqueeze(1)
-            elif preds.ndim == 2 and labels.ndim == 1:
-                labels = labels.unsqueeze(1)
-
-            loss = criterion(preds, labels)
-            total += float(loss)
-    return total / max(1, len(data_loader))
-
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            total_loss += loss.item()
+    print(len(data_loader))
+    return total_loss / len(data_loader)
 
 def plot_losses(train_losses, val_losses):
     '''
@@ -305,11 +314,11 @@ def plot_losses(train_losses, val_losses):
 def main():
     # Set hyperparameters
     batch_size = 8
-    num_epochs = 500
+    num_epochs = 5
     learning_rate = 1e-3
 
     # Get data loaders
-    train_loader, val_loader = get_data_loaders(batch_size)
+    train_loader, val_loader, test_loader = get_data_loaders(batch_size)
 
     # Detect number of classes and create the appropriate model
     dataset_root = Path("dataset")
@@ -330,7 +339,7 @@ def main():
     # Test the model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     criterion = nn.L1Loss()
-    test_loss = evaluate_model(trained_model, val_loader, criterion, device)
+    test_loss = evaluate_model(trained_model, test_loader, criterion, device)
     print(f"Test Loss: {test_loss:.4f}")
 
     # Save the model
