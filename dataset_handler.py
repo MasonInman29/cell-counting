@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 import pandas as pd
 from PIL import Image
-from pathlib import Path  # <-- CHANGED: use Path for robust paths
+from pathlib import Path  # use Path for robust paths
 
 
 # A Pytorch dataset class
@@ -54,11 +54,11 @@ class CellDataset(Dataset):
         # - replace parent dir 'img' or 'images' with 'ground_truth'
         # - swap extension to .csv
         parent = img_path.parent.name
-        if parent not in ("img", "images"):  # <-- CHANGED: tolerate either
+        if parent not in ("img", "images"):  # tolerate either
             # if the caller passed full paths already inside img/, do nothing
             pass
-        gt_dir = img_path.parent.parent / "ground_truth"  # <-- CHANGED
-        gt_path = gt_dir / (img_path.stem + ".csv")       # <-- CHANGED
+        gt_dir = img_path.parent.parent / "ground_truth"
+        gt_path = gt_dir / (img_path.stem + ".csv")       
 
         # Load the image and the ground truth (.tiff or .tif both OK)
         img = Image.open(img_path).convert('RGB')
@@ -93,3 +93,9 @@ class CellDataset(Dataset):
             img = self.transform(img)
 
         return img, label
+
+    def image_paths_str(self):
+        """
+        Return image paths as strings (useful for saving predictions).
+        """
+        return [str(p) for p in self.image_paths]
