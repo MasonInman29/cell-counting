@@ -208,3 +208,7 @@ __marimo__/
 
 dataset/
 checkpoints/
+final_augmented_dataset/
+plots/
+runs/
+runs_debug/
