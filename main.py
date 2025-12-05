@@ -20,6 +20,7 @@ from pathlib import Path                                                        
 import pandas as pd                                                                # <-- CHANGED
 from typing import List
 import os                                                            # <-- CHANGED
+import random
 
 def _image_paths_from_metadata(root: str, include_sets: List[str]) -> list: # <-- CHANGED
     root = Path(root)
@@ -31,6 +32,7 @@ def _image_paths_from_metadata(root: str, include_sets: List[str]) -> list: # <-
         if "id" not in df.columns or "set" not in df.columns:
             raise ValueError("metadata.csv must have at least 'id' and 'set' columns.")
         df = df[df["set"].isin(include_sets)]
+        #df = df[df["staining"].isin(["DAPI"])]
         ids = df["id"].astype(str).tolist()
         paths = []
         for i in ids:
@@ -120,23 +122,26 @@ def get_data_loaders(batch_size=8):
     # -- Add Augmented Images --
     # Specify what augmented image folders to include by commenting / un-commenting
     augmented_image_folders_to_use = [ 
-        #v_flip",
+        #"v_flip",
         #"h_flip",
         #"0_point_5_contrast",
         #"1_point_5_contrast",
         #"blurred",
         #"sharpened",
         #"h_and_v_flip",
-        #"0_point_5_contrast_and_h_and_v_flip",
-        #"1_point_5_contrast_and_h_and_v_flip",
+        #"v_flip_and_1_point_5_contrast",
     ]
     
     for augmented_image_folder in augmented_image_folders_to_use:
         trainval_paths.extend(glob(f"augmented_dataset/{augmented_image_folder}/img/*.tiff"))
 
+    # Randomize order of training/validation images
+    random.seed(3)
+    random.shuffle(trainval_paths)
+
     # Split the trainval images into two lists
     n = len(trainval_paths)
-    split = max(1, int(0.2 * n))
+    split = max(1, int(0.05 * n))
     val_paths = trainval_paths[:split]
     train_paths = trainval_paths[split:]
 
@@ -294,7 +299,6 @@ def evaluate_model(model, data_loader, criterion, device):
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             total_loss += loss.item()
-    print(len(data_loader))
     return total_loss / len(data_loader)
 
 def plot_losses(train_losses, val_losses):
@@ -314,7 +318,7 @@ def plot_losses(train_losses, val_losses):
 def main():
     # Set hyperparameters
     batch_size = 8
-    num_epochs = 5
+    num_epochs = 10
     learning_rate = 1e-3
 
     # Get data loaders
