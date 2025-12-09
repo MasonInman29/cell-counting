@@ -15,6 +15,7 @@ from tqdm import tqdm
 from dataset_handler import CellDataset
 from model import CellCounter
 import pandas as pd
+from torch.cuda import is_available as cuda_is_available
 
 
 def load_model(checkpoint_path):
@@ -28,7 +29,7 @@ def load_model(checkpoint_path):
             model (CellCounter): The model loaded from the checkpoint file.
     '''
     model = CellCounter()
-    model.load_state_dict(torch.load(checkpoint_path))
+    model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
     return model
 
 
@@ -52,7 +53,8 @@ def get_data_loader(image_paths, batch_size=8):
         ]
     )
     dataset = CellDataset(image_paths, transform=transform)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+    use_cuda = torch.cuda.is_available()
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=use_cuda)
     return loader
 
 
@@ -79,9 +81,17 @@ def generate_predictions(model, data_loader, output_file):
     for inputs, _ in tqdm(data_loader, desc="Generating predictions"):
         inputs = inputs.to(device)
         outputs = model(inputs)
-        predictions.extend(outputs.squeeze().tolist())
+        # handle SwitchCNN tuple vs scalar output
+        preds = outputs[0] if isinstance(outputs, tuple) else outputs
+        # preds -> (B,C) or (B,)
+        preds_cpu = preds.detach().cpu().float()
+        if preds_cpu.ndim == 2:
+            # sum across classes to a single scalar per image
+            preds_cpu = preds_cpu.sum(dim=1)
+        predictions.extend(preds_cpu.numpy().tolist())
     
-    image_paths = data_loader.dataset.image_paths
+    # dataset may store Path objects; convert to strings
+    image_paths = [str(p) for p in data_loader.dataset.image_paths]
     df = pd.DataFrame({"image_path": image_paths, "predictions": predictions})
     df.to_csv(output_file, index=False)
     return df
@@ -91,8 +101,8 @@ def main(checkpoint_path, image_dir, output_file):
     # Load a model from a checkpoint file
     model = load_model(checkpoint_path)
     
-    # Get a list of image paths
-    image_paths = glob(f"{image_dir}/*.tiff")
+    # Get a list of image paths (support .tif/.tiff)
+    image_paths = sorted(glob(f"{image_dir}/*.tif")) + sorted(glob(f"{image_dir}/*.tiff"))
     
     # Create a DataLoader object
     data_loader = get_data_loader(image_paths)
