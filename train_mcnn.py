@@ -381,7 +381,7 @@ def acp_aware_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
 
     # loss = mix of actual loss and relative loss (with constant multiplier hyperparams)
     loss = (weights * (base_mae + lambda_rel * rel_err)).mean()
-    
+
     # Final safety check
     if not torch.isfinite(loss):
         loss = torch.nan_to_num(loss, nan=0.0, posinf=1e6, neginf=1e6)
@@ -394,51 +394,91 @@ def relative_error_loss(
         min_denom: float = 1.0,
         power: float = 1.0,
     ) -> torch.Tensor:
-        """
-        Mean relative error loss on total counts per image.
+    """
+    Mean relative error loss on total counts per image.
 
-        Loss per image:
-        L_i = |p_i - y_i| / max(|y_i|, min_denom)
+    Loss per image:
+    L_i = |p_i - y_i| / max(|y_i|, min_denom)
 
-        Key idea of this loss function though is:
-        relative_error = |pred - true| / |true|
+    Key idea of this loss function though is:
+    relative_error = |pred - true| / |true|
+
+    Args:
+    preds:  (B,) or (B, C) predicted counts.
+    labels: (B,) or (B, C) true counts.
+    min_denom: lower bound for denominator to avoid exploding error
+                when y_i is near zero (e.g. 1.0 = 1 cell).
+
+    Returns:
+    Scalar tensor loss.
+    """
+    # Shape alignment
+    if preds.ndim == 1 and labels.ndim == 2:
+        preds = preds.unsqueeze(1)
+    if preds.ndim == 2 and labels.ndim == 1:
+        labels = labels.unsqueeze(1)
+
+    # Clean labels (safety)
+    labels = torch.nan_to_num(labels, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Total count per image (sum across classes if needed)
+    p_tot = preds.sum(dim=1) if preds.ndim == 2 else preds.squeeze(1)
+    l_tot = labels.sum(dim=1) if labels.ndim == 2 else labels.squeeze(1)
+
+    abs_err = torch.abs(p_tot - l_tot)
+
+    # Clamp denominator to avoid division by zero and exploding error vals
+    denominator = torch.clamp(l_tot.abs(), min=min_denom)
+    rel_err = abs_err / denominator  # per-sample relative error
+
+    loss = (rel_err).mean()
+
+    if not torch.isfinite(loss):
+        # ruh roh no bueno
+        loss = torch.nan_to_num(loss, nan=0.0, posinf=1e6, neginf=1e6)
+
+    return loss
 
 
-        Args:
-        preds:  (B,) or (B, C) predicted counts.
-        labels: (B,) or (B, C) true counts.
-        min_denom: lower bound for denominator to avoid exploding error
-                    when y_i is near zero (e.g. 1.0 = 1 cell).
+def huber_loss_counts(
+        preds: torch.Tensor,
+        labels: torch.Tensor,
+        delta: float = 1.0,
+    ) -> torch.Tensor:
+    """
+    Huber loss on total counts per image.
 
-        Returns:
-        Scalar tensor loss.
-        """
-        # Shape alignment
-        if preds.ndim == 1 and labels.ndim == 2:
-            preds = preds.unsqueeze(1)
-        if preds.ndim == 2 and labels.ndim == 1:
-            labels = labels.unsqueeze(1)
+    For each image:
+      err = |p_i - y_i|
+      L_i = 0.5 * err^2 / delta        if err <= delta
+          = err - 0.5 * delta          otherwise
 
-        # Clean labels (safety)
-        labels = torch.nan_to_num(labels, nan=0.0, posinf=0.0, neginf=0.0)
+    This is equivalent to a smooth L1 with transition around `delta`.
+    """
+    # Shape alignment
+    if preds.ndim == 1 and labels.ndim == 2:
+        preds = preds.unsqueeze(1)
+    if preds.ndim == 2 and labels.ndim == 1:
+        labels = labels.unsqueeze(1)
 
-        # Total count per image (sum across classes if needed)
-        p_tot = preds.sum(dim=1) if preds.ndim == 2 else preds.squeeze(1)
-        l_tot = labels.sum(dim=1) if labels.ndim == 2 else labels.squeeze(1)
+    labels = torch.nan_to_num(labels, nan=0.0, posinf=0.0, neginf=0.0)
 
-        abs_err = torch.abs(p_tot - l_tot)
+    p_tot = preds.sum(dim=1) if preds.ndim == 2 else preds.squeeze(1)
+    l_tot = labels.sum(dim=1) if labels.ndim == 2 else labels.squeeze(1)
 
-        # Clamp denominator to avoid division by zero and exploding error vals
-        denominator = torch.clamp(l_tot.abs(), min=min_denom)
-        rel_err = abs_err / denominator  # per-sample relative error
+    abs_err = torch.abs(p_tot - l_tot)
+    delta_t = torch.tensor(delta, device=abs_err.device, dtype=abs_err.dtype)
 
-        loss = (rel_err).mean()
+    quadratic = 0.5 * (abs_err ** 2) / delta_t
+    linear = abs_err - 0.5 * delta_t
 
-        if not torch.isfinite(loss):
-            # ruh roh no bueno
-            loss = torch.nan_to_num(loss, nan=0.0, posinf=1e6, neginf=1e6)
+    loss = torch.where(abs_err <= delta_t, quadratic, linear).mean()
 
-        return loss
+    if not torch.isfinite(loss):
+        loss = torch.nan_to_num(loss, nan=0.0, posinf=1e6, neginf=1e6)
+
+    return loss
+
 
 # -------------------------------------------------------------------------
 # Training / evaluation
@@ -451,12 +491,15 @@ def train_model(model,
                 learning_rate: float = 1e-3,
                 checkpoint_dir: str = 'checkpoints',
                 run_dir: Path = None,
-                use_log: bool = False):
+                use_log: bool = False,
+                use_huber: bool = False,
+                huber_delta: float = 1.0):
     """
     Train loop supporting:
-      - Original ACP-aware loss on counts (use_log=False)
+      - Original ACP-aware loss on counts (use_log=False, use_huber=False)
+      - Huber loss on counts           (use_log=False, use_huber=True)
       - Log transform training: model predicts log(count+1),
-        loss is L1 in log space (use_log=True), metrics are on counts via expm1.
+        with either L1 (use_huber=False) or Huber (use_huber=True) in log space.
     """
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -517,10 +560,19 @@ def train_model(model,
                     # jiwons code - integrated by Mason: log transform training
                     # Model predicts log(count+1) per class; labels are log1p(count).
                     labels_log = torch.log1p(torch.clamp(labels_m, min=0.0))
-                    loss = F.l1_loss(preds_m, labels_log)
+                    if use_huber:
+                        # Huber in log space
+                        loss = F.smooth_l1_loss(preds_m, labels_log, reduction='mean')
+                    else:
+                        # Original L1 in log space
+                        loss = F.l1_loss(preds_m, labels_log)
                 else:
-                    # Original ACP-aware loss on counts
-                    loss = acp_aware_loss(preds_m, labels_m)
+                    # Count-space losses
+                    if use_huber:
+                        loss = huber_loss_counts(preds_m, labels_m, delta=huber_delta)
+                    else:
+                        # Original ACP-aware loss on counts
+                        loss = acp_aware_loss(preds_m, labels_m)
 
                 # Debug: check loss
                 if not torch.isfinite(loss):
@@ -566,7 +618,14 @@ def train_model(model,
         train_losses.append(train_loss)
 
         # validate
-        val_metrics, val_loss = evaluate_model(model, val_loader, device, use_log=use_log)
+        val_metrics, val_loss = evaluate_model(
+            model,
+            val_loader,
+            device,
+            use_log=use_log,
+            use_huber=use_huber,
+            huber_delta=huber_delta,
+        )
         val_losses.append(val_loss)
         val_history.append(val_metrics)
 
@@ -577,7 +636,7 @@ def train_model(model,
             f'train_loss={train_loss:.4f} val_loss={val_loss:.4f} | '
             f'train_MAE={train_metrics["mae"]:.4f} val_MAE={val_metrics["mae"]:.4f} | '
             f'train_ACP={train_metrics["acp"]:.2f}% val_ACP={val_metrics["acp"]:.2f}% '
-            f'| use_log={use_log}'
+            f'| use_log={use_log} use_huber={use_huber}'
         )
 
         # Save checkpoint every 5 epochs
@@ -603,12 +662,17 @@ def train_model(model,
     return model, train_history, val_history, train_losses, val_losses
 
 
-def evaluate_model(model, data_loader, device, use_log: bool = False):
+def evaluate_model(model,
+                   data_loader,
+                   device,
+                   use_log: bool = False,
+                   use_huber: bool = False,
+                   huber_delta: float = 1.0):
     """
     Validation loop:
-      - If use_log=False: uses ACP-aware loss on counts.
-      - If use_log=True : uses MAE on counts derived via expm1(preds_log).
-    Metrics are always computed in COUNT space.
+      - If use_log=False, use ACP-aware loss or Huber loss on counts.
+      - If use_log=True, use MAE or Huber on log(count+1), but metrics are
+        always computed in COUNT space.
     """
     model.eval()
     total = 0.0
@@ -635,15 +699,22 @@ def evaluate_model(model, data_loader, device, use_log: bool = False):
                 labels_m = labels
 
             if use_log:
-                # jiwons code - integrated by Mason: evaluate MAE on counts via expm1
+                # Evaluate loss in log space, metrics in count space
+                labels_log = torch.log1p(torch.clamp(labels_m, min=0.0))
+                if use_huber:
+                    loss = F.smooth_l1_loss(preds_m, labels_log, reduction='mean')
+                else:
+                    loss = F.l1_loss(preds_m, labels_log)
                 preds_counts = torch.expm1(preds_m)
                 labels_counts = labels_m
-                p_tot = preds_counts.sum(dim=1)
-                l_tot = labels_counts.sum(dim=1)
-                loss = torch.mean(torch.abs(p_tot - l_tot))
             else:
-                # ACP-aware loss on counts
-                loss = acp_aware_loss(preds_m, labels_m)
+                # Count-space losses
+                if use_huber:
+                    loss = huber_loss_counts(preds_m, labels_m, delta=huber_delta)
+                else:
+                    loss = acp_aware_loss(preds_m, labels_m)
+                preds_counts = preds_m
+                labels_counts = labels_m
 
             # NaN/Inf guard for validation
             if not torch.isfinite(loss):
@@ -655,12 +726,6 @@ def evaluate_model(model, data_loader, device, use_log: bool = False):
             total += float(loss)
 
             # accumulate totals per sample for metrics in COUNT space
-            if use_log:
-                preds_counts = torch.expm1(preds_m)
-            else:
-                preds_counts = preds_m
-            labels_counts = labels_m
-
             p = preds_counts.cpu().float()
             l = labels_counts.cpu().float()
             p_tot = p.sum(dim=1).numpy() if p.ndim == 2 else p.numpy()
@@ -724,7 +789,7 @@ def plot_losses(train_losses, val_losses, out_path: str = 'plots/losses.png'):
 # -------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description='Train cell counter with ACP-aware or log-space loss.')
+    parser = argparse.ArgumentParser(description='Train cell counter with ACP-aware, Huber, or log-space loss.')
     parser.add_argument('--dataset-root', type=str, default='dataset',
                         help='Root directory containing img/ and ground_truth/ folders.')
     parser.add_argument('--batch-size', type=int, default=8)
@@ -733,7 +798,7 @@ def main():
     parser.add_argument('--device', choices=['auto', 'cpu', 'cuda'], default='auto')
     parser.add_argument('--save-model', type=str, default='cell_counter.pth')
     parser.add_argument('--num-classes', type=int, default=None,
-                        help='Override auto-detected number of classes.')                    
+                        help='Override auto-detected number of classes.')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--out-root', type=str, default='runs',
                         help='Root directory where all run folders are created.')
@@ -741,7 +806,11 @@ def main():
                         help='Optional custom run name; if not set, use timestamp+model+seed.')
     # jiwons code - integrated by Mason
     parser.add_argument('--use-log', action='store_true',
-                        help='Train on log(count+1) (L1 in log space) and evaluate metrics in count space via expm1.')
+                        help='Train on log(count+1) and evaluate metrics in count space via expm1.')
+    parser.add_argument('--use-huber', action='store_true',
+                        help='Use Huber loss (on counts, or in log-space if --use-log is also set).')
+    parser.add_argument('--huber-delta', type=float, default=1.0,
+                        help='Delta parameter for Huber loss in count space.')
     args = parser.parse_args()
 
     # device handling (main train/eval functions still use torch.cuda.is_available())
@@ -757,7 +826,8 @@ def main():
     if args.run_name is None:
         timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
         log_tag = '_log' if args.use_log else ''
-        run_name = f'{timestamp}_seed{args.seed}{log_tag}'
+        huber_tag = '_huber' if args.use_huber else ''
+        run_name = f'{timestamp}_seed{args.seed}{log_tag}{huber_tag}'
     else:
         run_name = args.run_name
 
@@ -799,6 +869,8 @@ def main():
         checkpoint_dir=str(ckpt_dir),
         run_dir=run_dir,
         use_log=args.use_log,
+        use_huber=args.use_huber,
+        huber_delta=args.huber_delta,
     )
 
     # Plot the training and validation metrics
@@ -812,8 +884,16 @@ def main():
 
     # Final "test" on the validation split, just to print metrics nicely
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    val_metrics, test_loss = evaluate_model(trained_model.to(device), val_loader, device, use_log=args.use_log)
+    val_metrics, test_loss = evaluate_model(
+        trained_model.to(device),
+        val_loader,
+        device,
+        use_log=args.use_log,
+        use_huber=args.use_huber,
+        huber_delta=args.huber_delta,
+    )
     print(f'Final Val Loss: {test_loss:.4f} | Val MAE: {val_metrics["mae"]:.4f} | Val ACP: {val_metrics["acp"]:.2f}%')
+
 
 if __name__ == '__main__':
     main()
