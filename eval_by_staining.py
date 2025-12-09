@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from dataset_handler import CellDataset
-from model import CellCounter, SwitchCNN, MMNetCellCounter
+from model import MMNetCellCounter
 
 
 # -------------------------------------------------------------------------
@@ -329,15 +329,9 @@ def main():
         num_classes = len(class_map) if class_map is not None else 1
 
     # Instantiate model
-    if args.model_type == "mmnet":
-        print(f"[INFO] Using MMNetCellCounter (num_classes={num_classes})")
-        model = MMNetCellCounter(in_channels=3, num_classes=num_classes)
-    elif args.model_type == "switch":
-        print(f"[INFO] Using SwitchCNN (num_classes={num_classes})")
-        model = SwitchCNN(num_classes=num_classes)
-    else:
-        print(f"[INFO] Using baseline CellCounter (num_classes={num_classes})")
-        model = CellCounter()
+    print(f"[INFO] Using MMNetCellCounter (num_classes={num_classes})")
+    model = MMNetCellCounter(in_channels=3, num_classes=num_classes)
+
 
     # Load weights
     if not os.path.isfile(args.model_path):

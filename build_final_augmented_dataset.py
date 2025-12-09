@@ -6,8 +6,8 @@ import os
 IMAGE_WIDTH = 1600
 IMAGE_HEIGHT = 1200
 
-IMAGE_DIR = "./dataset/img"
-COORDINATES_DIR = "./dataset/ground_truth"
+IMAGE_DIR = "../dataset/img"
+COORDINATES_DIR = "../dataset/ground_truth"
 AUGMENTATIONS_DIR_BASE = "./final_augmented_dataset/"
 
 def vertical_flip(cell_image, cell_coordinates):
@@ -24,7 +24,7 @@ def save_augmentation(save_dir, prefix, image_num, image, coordinates):
     coordinates.to_csv(save_dir+"ground_truth/"+prefix+str(image_num)+".csv", index=False)
 
 def main():
-    metadata_df = pd.read_csv("./dataset/metadata.csv")
+    metadata_df = pd.read_csv("../dataset/metadata.csv")
 
     augmented_metadata = []
 
