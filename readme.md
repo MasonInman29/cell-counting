@@ -26,11 +26,11 @@ With the Conda Environment activated, you are ready to run the different Python 
 * `eval_by_staining.py`: Post-hoc script that runs a train MCNN model and obtains metrics needed in the report for different staining metrics. Example run: `python eval_by_staining.py --dataset-root ../dataset --model-path models/mcnn.pth --model-type mmnet --batch-size 8 --out-csv runs/log.csv`
 * `eval_by_density.py`: Post-hoc script that runs a train MCNN model and obtains metrics needed in the report for different density metrics. Example run: `python eval_by_density.py --dataset-root ../dataset --model-path models/mcnn.pth --model-type mmnet --batch-size 8 --out-csv runs/log.csv`
 * `main.py`: This file contains the code to run the starter code model and do the ablation experiments. The ablation experiments were run by setting the number of epochs to 20 and then uncommenting the line corresponding to what augmentation technique that should be tested. Make sure to run `data_augmenter.py` first.
-* `generate_predictions.py`:
 
 ### Supporting Files 
-* `model.py`: defines the architectures of the provided starter code model (simple CNN architecture) and the MCNN.   
-* `dataset_handler.py`:
+* `model.py`: Defines the architectures of the provided starter code model (simple CNN architecture) and the MCNN.   
+* `dataset_handler.py`: File that defines a dataset handler for parsing the dataset and splitting it into training, validation, and test.
+* `generate_predictions.py`: File that generates predictions using a trained model and the test dataset.
 
 ## The Dataset
 The project utilizes the [CellFMCount dataset](https://zenodo.org/records/17088532), which comprises 3,023 fluorescence microscopy images from immunocytochemistry experiments involving neural progenitor cells. Each image is associated with a particular stain and has a corresponding CSV file containing the annotated positions of the cells of that stain in the image. The annotated positions can be viewed as the approximate center of the annotated cell. The CSV file has the following structure, where the column specifies the distance from the upper left corner in pixels:
