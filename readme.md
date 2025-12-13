@@ -22,12 +22,12 @@ With the Conda Environment activated, you are ready to run the different Python 
   
 * `data_augmenter.py`: Contains the code to generate the various augmented datasets used in the data augmentation ablation studies.
 * `build_final_augmented_dataset.py`: This file generates a folder with the final augmented dataset. Refer to the report for a detailed description of the final augmented dataset.
+
+* `main_unbalanced_v9.py`: Contains the code used to do the class imbalance ablation studies.
   
 * `eval_by_staining.py`: Post-hoc script that runs a train MCNN model and obtains metrics needed in the report for different staining metrics. Example run: `python eval_by_staining.py --dataset-root ../dataset --model-path models/mcnn.pth --model-type mmnet --batch-size 8 --out-csv runs/log.csv`
 * `eval_by_density.py`: Post-hoc script that runs a train MCNN model and obtains metrics needed in the report for different density metrics. Example run: `python eval_by_density.py --dataset-root ../dataset --model-path models/mcnn.pth --model-type mmnet --batch-size 8 --out-csv runs/log.csv`
 * `main.py`: This file contains the code to run the starter code model and do the ablation experiments. The ablation experiments were run by setting the number of epochs to 20 and then uncommenting the line corresponding to what augmentation technique that should be tested. Make sure to run `data_augmenter.py` first.
-
-* `main_unbalanced_v9.py`: Contains the code used to do the class imbalance ablation studies.
 
 ### Supporting Files 
 * `model.py`: Defines the architectures of the provided starter code model (simple CNN architecture) and the MCNN.   
