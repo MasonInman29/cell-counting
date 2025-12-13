@@ -124,12 +124,10 @@ def get_data_loaders(batch_size=8):
     augmented_image_folders_to_use = [ 
         #"v_flip",
         #"h_flip",
-        #"0_point_5_contrast",
-        #"1_point_5_contrast",
+        #"decreased_contrast",
+        #"increased_contrast",
         #"blurred",
         #"sharpened",
-        #"h_and_v_flip",
-        #"v_flip_and_1_point_5_contrast",
     ]
     
     for augmented_image_folder in augmented_image_folders_to_use:

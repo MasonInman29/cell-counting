@@ -72,18 +72,9 @@ def main():
                           coordinates=new_coordinates
                          )
 
-        # Horizontally and vertically flip the images
-        augmented_cell_image_1, new_coordinates_1 = horizontal_flip(cell_image, cell_coordinates)
-        augmented_cell_image_2, new_coordinates_2 = vertical_flip(augmented_cell_image_1, new_coordinates_1)
-        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "/h_and_v_flip/",
-                          image_num=image_num,
-                          image=augmented_cell_image_2,
-                          coordinates=new_coordinates_2
-                         )
-
         # Reduce contrast of the images
         enhancer = ImageEnhance.Contrast(cell_image)
-        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "0_point_5_contrast/",
+        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "decreased_contrast/",
                           image_num=image_num,
                           image=enhancer.enhance(0.5),
                           coordinates=cell_coordinates
@@ -91,7 +82,7 @@ def main():
         
         # Increase contrast of the images
         enhancer = ImageEnhance.Contrast(cell_image)
-        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "1_point_5_contrast/",
+        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "increased_contrast/",
                           image_num=image_num,
                           image=enhancer.enhance(1.5),
                           coordinates=cell_coordinates
@@ -116,7 +107,7 @@ def main():
         # v_flip + 1_point_5_contrast
         augmented_cell_image_1, new_coordinates_1 = vertical_flip(cell_image, cell_coordinates)
         enhancer = ImageEnhance.Contrast(augmented_cell_image_1)
-        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "v_flip_and_1_point_5_contrast/",
+        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "v_flip_and_increased_contrast/",
                           image_num=image_num,
                           image=enhancer.enhance(1.5),
                           coordinates=new_coordinates_1
@@ -130,14 +121,12 @@ if __name__ == "__main__":
     os.makedirs("./augmented_dataset/blurred/img", exist_ok=True)
     os.makedirs("./augmented_dataset/blurred/ground_truth", exist_ok=True)
     os.makedirs("./augmented_dataset/sharpened/img", exist_ok=True)
-    os.makedirs("./augmented_dataset/shapened/ground_truth", exist_ok=True)
-    os.makedirs("./augmented_dataset/0_point_5_contrast/img", exist_ok=True)
-    os.makedirs("./augmented_dataset/0_point_5_contrast/ground_truth", exist_ok=True)
-    os.makedirs("./augmented_dataset/1_point_5_contrast/img", exist_ok=True)
-    os.makedirs("./augmented_dataset/1_point_5_contrast/ground_truth", exist_ok=True)
-    os.makedirs("./augmented_dataset/v_flip_and_1_point_5_contrast/img", exist_ok=True)
-    os.makedirs("./augmented_dataset/v_flip_and_1_point_5_contrast/ground_truth", exist_ok=True)
-    os.makedirs("./augmented_dataset/h_and_v_flip/img", exist_ok=True)
-    os.makedirs("./augmented_dataset/h_and_v_flip/ground_truth", exist_ok=True)
+    os.makedirs("./augmented_dataset/sharpened/ground_truth", exist_ok=True)
+    os.makedirs("./augmented_dataset/decreased_contrast/img", exist_ok=True)
+    os.makedirs("./augmented_dataset/decreased_contrast/ground_truth", exist_ok=True)
+    os.makedirs("./augmented_dataset/increased_contrast/img", exist_ok=True)
+    os.makedirs("./augmented_dataset/increased_contrast/ground_truth", exist_ok=True)
+    os.makedirs("./augmented_dataset/v_flip_and_increased_contrast/img", exist_ok=True)
+    os.makedirs("./augmented_dataset/v_flip_and_increased_contrast/ground_truth", exist_ok=True)
 
     main()
