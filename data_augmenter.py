@@ -56,7 +56,7 @@ def main():
 
         # --- Augmentations --- #
 
-        """# Horizontally flip the images
+        # Horizontally flip the images
         augmented_cell_image, new_coordinates = horizontal_flip(cell_image, cell_coordinates)
         save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "/h_flip/",
                           image_num=image_num,
@@ -87,36 +87,17 @@ def main():
                           image_num=image_num,
                           image=enhancer.enhance(0.5),
                           coordinates=cell_coordinates
-                         )"""
+                         )
         
-        """# Increase contrast of the images
+        # Increase contrast of the images
         enhancer = ImageEnhance.Contrast(cell_image)
         save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "1_point_5_contrast/",
                           image_num=image_num,
                           image=enhancer.enhance(1.5),
                           coordinates=cell_coordinates
-                         )"""
-
-        """# horizontal + vertical + contrast change
-        augmented_cell_image_1, new_coordinates_1 = horizontal_flip(cell_image, cell_coordinates)
-        augmented_cell_image_2, new_coordinates_2 = vertical_flip(augmented_cell_image_1, new_coordinates_1)
-        enhancer = ImageEnhance.Contrast(augmented_cell_image_2)
-        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "0_point_5_contrast_and_h_and_v_flip/",
-                          image_num=image_num,
-                          image=enhancer.enhance(0.5),
-                          coordinates=new_coordinates_2
                          )
         
-        augmented_cell_image_1, new_coordinates_1 = horizontal_flip(cell_image, cell_coordinates)
-        augmented_cell_image_2, new_coordinates_2 = vertical_flip(augmented_cell_image_1, new_coordinates_1)
-        enhancer = ImageEnhance.Contrast(augmented_cell_image_2)
-        save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "1_point_5_contrast_and_h_and_v_flip/",
-                          image_num=image_num,
-                          image=enhancer.enhance(1.5),
-                          coordinates=new_coordinates_2
-                         ) """
-        
-        """# Sharpen the Images
+        # Sharpen the Images
         enhancer = ImageEnhance.Sharpness(cell_image)
         save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "sharpened/",
                           image_num=image_num,
@@ -130,16 +111,16 @@ def main():
                           image_num=image_num,
                           image=enhancer.enhance(0.0),
                           coordinates=cell_coordinates
-                         )"""
+                         )
 
-        """# v_flip + 1_point_5_contrast
+        # v_flip + 1_point_5_contrast
         augmented_cell_image_1, new_coordinates_1 = vertical_flip(cell_image, cell_coordinates)
         enhancer = ImageEnhance.Contrast(augmented_cell_image_1)
         save_augmentation(save_dir=AUGMENTATIONS_DIR_BASE + "v_flip_and_1_point_5_contrast/",
                           image_num=image_num,
                           image=enhancer.enhance(1.5),
                           coordinates=new_coordinates_1
-                         )"""
+                         )
 
 if __name__ == "__main__":
     os.makedirs("./augmented_dataset/h_flip/img", exist_ok=True)
@@ -156,10 +137,6 @@ if __name__ == "__main__":
     os.makedirs("./augmented_dataset/1_point_5_contrast/ground_truth", exist_ok=True)
     os.makedirs("./augmented_dataset/v_flip_and_1_point_5_contrast/img", exist_ok=True)
     os.makedirs("./augmented_dataset/v_flip_and_1_point_5_contrast/ground_truth", exist_ok=True)
-    os.makedirs("./augmented_dataset/1_point_5_contrast_and_h_and_v_flip/img", exist_ok=True)
-    os.makedirs("./augmented_dataset/1_point_5_contrast_and_h_and_v_flip/ground_truth", exist_ok=True)
-    os.makedirs("./augmented_dataset/0_point_5_contrast_and_h_and_v_flip/img", exist_ok=True)
-    os.makedirs("./augmented_dataset/0_point_5_contrast_and_h_and_v_flip/ground_truth", exist_ok=True)
     os.makedirs("./augmented_dataset/h_and_v_flip/img", exist_ok=True)
     os.makedirs("./augmented_dataset/h_and_v_flip/ground_truth", exist_ok=True)
 
