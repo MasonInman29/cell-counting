@@ -16,13 +16,13 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from dataset_handler import CellDataset
 from model import CellCounter, SwitchCNN
-from pathlib import Path                                                           # <-- CHANGED
-import pandas as pd                                                                # <-- CHANGED
+from pathlib import Path                                                          
+import pandas as pd                                                               
 from typing import List
-import os                                                            # <-- CHANGED
+import os                                                          
 import random
 
-def _image_paths_from_metadata(root: str, include_sets: List[str]) -> list: # <-- CHANGED
+def _image_paths_from_metadata(root: str, include_sets: List[str]) -> list: 
     root = Path(root)
     meta = root / "metadata.csv"
     img_dir = root / "img"
@@ -44,7 +44,7 @@ def _image_paths_from_metadata(root: str, include_sets: List[str]) -> list: # <-
                 paths.append(str(p_tiff))
         return paths
     else:
-        # fallback: no metadata.csv, just glob everything      # <-- CHANGED
+        # fallback: no metadata.csv, just glob everything    
         return sorted(glob(str(img_dir / "*.tif"))) + sorted(glob(str(img_dir / "*.tiff")))
 
 from torch.cuda.amp import GradScaler, autocast
@@ -114,10 +114,10 @@ def get_data_loaders(batch_size=8):
         val_loader (DataLoader): A DataLoader object for the validation set.
     '''
 
-    dataset_root = "dataset"                                                     # <-- CHANGED
+    dataset_root = "dataset"                                                   
 
-    trainval_paths = _image_paths_from_metadata(dataset_root, include_sets=["trainval"])  # <-- CHANGED
-    test_paths   = _image_paths_from_metadata(dataset_root, include_sets=["test"])        # <-- CHANGED
+    trainval_paths = _image_paths_from_metadata(dataset_root, include_sets=["trainval"])  
+    test_paths   = _image_paths_from_metadata(dataset_root, include_sets=["test"])       
 
     # -- Add Augmented Images --
     # Specify what augmented image folders to include by commenting / un-commenting
@@ -163,8 +163,8 @@ def get_data_loaders(batch_size=8):
     ])
 
     # Create datasets
-    train_dataset = CellDataset(train_paths, transform=train_transform)          # <-- CHANGED (paths var)
-    val_dataset   = CellDataset(val_paths,   transform=val_transform)            # <-- CHANGED
+    train_dataset = CellDataset(train_paths, transform=train_transform)          
+    val_dataset   = CellDataset(val_paths,   transform=val_transform)            
     test_dataset  = CellDataset(test_paths,   transform=test_transform)
 
     # Create dataloaders
