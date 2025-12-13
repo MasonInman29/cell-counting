@@ -1,46 +1,36 @@
 # COM S 571X: Cell Counting Project
-The following repository contains example python code for automated cell counting. It is structured as follows:
-- `main.py`: The main script that runs training and testing of the model.
-- `model.py`: The model architecture.
-- `dataset_handler.py`: The dataset handler class.
+The code in this repository is for the final project in the course _COMS 571X Responsible AI_ at Iowa State University. The objective of this project is to automatically count the number of cells in provided cell images using machine learning.
 
-## Requirements
-- Python 3.8+
-- PyTorch 1.13+
-- Pillow 8.1+
-- Numpy 1.19+
-- Pandas 1.2+
+The repository contains code for the two models tested (Cellpose-SAM and MCNN) and the code used to mitigate the limited labeled data risk and class imbalance risk. The directory also contains the provided starter model (simple CNN architecture) used for the limited labeled data risk- and class imbalance risk ablation studies.
+
+## Installation
+1. Clone the repository onto the device where you want to run the code.
+2. Navigate to the cloned repository in your terminal.
+3. Download the cell dataset from: https://zenodo.org/records/17088532 and place it in the cloned repository. The folder should be namned "Dataset".
+4. Create a conda environment by running `conda env create -f environment.yml`. This will download all of the required python dependencies.
+5. Activate the Conda Environment by running `conda activate cellCounting`
+You are now ready to run the differnt python scripts by executing `python <filename>.py`. See the section "File Overview" below for an overview of the different files.
+
+## File Overview
+
+### Runnable Files Used to Obtain the Results
+
+* `train_mcnn.py`:  
+* `data_augmenter.py`: Contains functions to generate the various augmented datasets used in the data augmentation ablation studies.
+* `build_final_augmented_dataset.py`: This file generates a folder with the final augmented dataset. See the report for a description of the final augmented dataset.
+* `eval_by_staining.py`:
+* `main.py`: This file contains the code to run the starter code model and do the ablation experiments. The ablation experiments were run by setting the number of epochs to 20 and then uncommenting the line corresponding to what augmentation technique should be tested. Make sure to run `data_augmenter.py` first.
+* `generate_predictions.py`:
+
+### Supporting Files 
+* `model.py`: defines the architectures of the provided starter code model (simple CNN architecture) and the MCNN.   
+* `dataset_handler.py`:
 
 ## The Dataset
-The dataset used in this project is the IDCIA v2 dataset. It contains microscopic images of Adult Hippocampal Progenitor Cells (AHPCs) and their corresponding ground truth cell counts. Each image is 600x800 pixels and contains a varying number of cells. For every image, the location of each cell is provided in a CSV file. A typical ground truth CSV file is shown below:
+The project uses the [CellFMCount dataset](https://zenodo.org/records/17088532) with 3,023 fluorescence microscopy images from immunocytochemistry experiments involving neural progenitor cells. Each image is associated with a particular stain and has a corresponding CSV file containing the annotated positions of the cells of that stain in the image. The annotated positions can be viewed as the approximate center of the annotated cell. The CSV file has the following structure where the column specifies the distance from the upper left corner in pixels:
 ```
 X,Y
 100,200
 300,400
 ...
 ```
-The first row contains the column names, and each subsequent row contains the x and y coordinates of a cell. To obtain the cell count, the number of rows in the CSV file is counted. The training set of the dataset containing 250 images will be provided to you. A separate test set containing 108 images will be held out for evaluation. It is important to note that the test set will not be provided to you, and you will be required to submit your predictions on the test set to be evaluated. For hyperparameter tuning, you can split the training set into a training and validation sets.
-
-> Note that in the code provided, the images are resized to 256x256 pixels. It is up to you to decide whether to use the images in their original size or resize them to a different size.
-
-## The Model
-As a starting point, we provide you with a simple CNN model that takes an image as input and outputs the cell count. Remember that the model provided in `model.py` is a simple model and the hyperparameters are not tuned. You are encouraged to experiment with different architectures and hyperparameters to improve the performance of the model. A good starting point would be to use a pre-trained model and fine-tune it on the dataset.
-
-Another important thing to note is that the fully connected layer in the model assumes that the input image size is 256x256 pixels. If you decide to use a different image size, you will need to adjust the size of the fully connected layer accordingly.
-
-## Evaluation
-You can use different evaluation metrics to evaluate the performance of your model. Common evaluation metrics for regression tasks include Mean Squared Error (MSE), Mean Absolute Error (MAE), and Root Mean Squared Error (RMSE). You can use any of these metrics to evaluate your model. 
-
-## Submission
-Once you have trained your model, you will need to make predictions on the test set and submit your predictions in a CSV file. The CSV file should contain two columns: `Image` and `Cell Count`. The `Image` column should contain the name of the image file, and the `Cell Count` column should contain the predicted cell count for that image. Here is an example of how the CSV file should look:
-```
-Image,Cell Count
-image_001.tiff,10
-image_002.tiff,20
-...
-```
-
-## Reminders
-- The dataset is provided to you for the purpose of this project only. You are not allowed to distribute the dataset or use it for any other purpose.
-
-
