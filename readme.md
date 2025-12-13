@@ -8,7 +8,8 @@ The repository contains code for the two models tested (Cellpose-SAM and MCNN) a
 2. Navigate to the cloned repository in your terminal.
 3. Download the cell dataset from: https://zenodo.org/records/17088532 and place it in the cloned repository. The folder should be namned "Dataset".
 4. Create a conda environment by running `conda env create -f environment.yml`. This will download all of the required python dependencies.
-5. Activate the Conda Environment by running `conda activate cellCounting`.  
+5. Activate the Conda Environment by running `conda activate cellCounting`.
+
 With the Conda Environment activated, you are ready to run the differnt python scripts by executing `python <filename>.py`. See the section "File Overview" below for an overview of the different files.
 
 ## File Overview
