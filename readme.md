@@ -16,10 +16,12 @@ With the Conda Environment activated, you are ready to run the differnt python s
 
 ### Runnable Files Used to Obtain the Results
 
+* `run_Cellpose_SAM.ipynb`:
 * `train_mcnn.py`:  
 * `data_augmenter.py`: Contains the code to generate the various augmented datasets used in the data augmentation ablation studies.
 * `build_final_augmented_dataset.py`: This file generates a folder with the final augmented dataset. See the report for a description of the final augmented dataset.
 * `eval_by_staining.py`:
+* `eval_by_density.py`:
 * `main.py`: This file contains the code to run the starter code model and do the ablation experiments. The ablation experiments were run by setting the number of epochs to 20 and then uncommenting the line corresponding to what augmentation technique should be tested. Make sure to run `data_augmenter.py` first.
 * `generate_predictions.py`:
 
